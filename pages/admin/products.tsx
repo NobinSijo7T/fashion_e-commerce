@@ -8,6 +8,7 @@ import { DataTable } from "../../components/admin/DataTable";
 import { ConfirmDialog } from "../../components/admin/ConfirmDialog";
 import { ProductEditor } from "../../components/admin/ProductEditor";
 import { useRequireAdmin } from "../../hooks/useRequireAdmin";
+import { formatInr } from "../../lib/formatInr";
 import { supabase } from "../../src/lib/supabase";
 
 type Row = {
@@ -209,9 +210,9 @@ export default function AdminProducts() {
               <th className="px-3 py-3 font-medium">Name</th>
               <th className="px-3 py-3 font-medium">Category</th>
               <th className="px-3 py-3 font-medium">Gender</th>
-              <th className="px-3 py-3 font-medium">Price</th>
+              <th className="px-3 py-3 font-medium">Price (INR)</th>
               <th className="px-3 py-3 font-medium">Disc%</th>
-              <th className="px-3 py-3 font-medium">Final</th>
+              <th className="px-3 py-3 font-medium">Final (INR)</th>
               <th className="px-3 py-3 font-medium">Stock</th>
               <th className="px-3 py-3 font-medium">Active</th>
               <th className="px-3 py-3 font-medium">Actions</th>
@@ -240,10 +241,12 @@ export default function AdminProducts() {
                   {r.fashion_categories?.name ?? "—"}
                 </td>
                 <td className="px-3 py-2 capitalize">{r.gender_target}</td>
-                <td className="px-3 py-2">${Number(r.base_price).toFixed(2)}</td>
+                <td className="px-3 py-2">
+                  {formatInr(Number(r.base_price))}
+                </td>
                 <td className="px-3 py-2">{r.discount_percent ?? 0}</td>
                 <td className="px-3 py-2 text-indigo-300">
-                  ${Number(r.final_price).toFixed(2)}
+                  {formatInr(Number(r.final_price))}
                 </td>
                 <td className="px-3 py-2">{stockSum(r)}</td>
                 <td className="px-3 py-2">

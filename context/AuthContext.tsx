@@ -17,6 +17,16 @@ export type User = {
   phone?: string;
 };
 
+/** Structured address stored in auth metadata + `addresses` via signup trigger. */
+export type RegisterAddressPayload = {
+  address_line1: string;
+  address_line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  country?: string;
+};
+
 type authType = {
   user: User | null;
   authReady: boolean;
@@ -24,11 +34,13 @@ type authType = {
     email: string,
     fullname: string,
     password: string,
-    shippingAddress: string,
-    phone: string
+    phone: string,
+    address: RegisterAddressPayload
   ) => Promise<{
     success: boolean;
     message: string;
+    /** Raw Supabase / network message for debugging or UI (optional). */
+    detail?: string;
   }>;
   login?: (
     email: string,
@@ -36,6 +48,8 @@ type authType = {
   ) => Promise<{
     success: boolean;
     message: string;
+    /** Present after a successful sign-in; used to send admins to the dashboard. */
+    isAdmin?: boolean;
   }>;
   forgotPassword?: (email: string) => Promise<{
     success: boolean;
@@ -140,8 +154,8 @@ function useProvideAuth() {
     email: string,
     fullname: string,
     password: string,
-    shippingAddress: string,
-    phone: string
+    phone: string,
+    address: RegisterAddressPayload
   ) => {
     try {
       const supabase = getSupabaseBrowserClient();
@@ -156,35 +170,64 @@ function useProvideAuth() {
           data: {
             full_name: fullname,
             phone,
-            shipping_address: shippingAddress,
+            address_line1: address.address_line1,
+            address_line2: address.address_line2 ?? "",
+            city: address.city,
+            state: address.state,
+            pincode: address.pincode,
+            country: address.country ?? "India",
           },
         },
       });
       if (error) {
-        const msg =
-          error.message.toLowerCase().includes("registered") ||
-          error.message.toLowerCase().includes("already")
-            ? "alreadyExists"
-            : "error_occurs";
-        return { success: false, message: msg };
+        const raw = error.message ?? "";
+        const lower = raw.toLowerCase();
+        if (
+          lower.includes("registered") ||
+          lower.includes("already") ||
+          lower.includes("user already")
+        ) {
+          return { success: false, message: "alreadyExists", detail: raw };
+        }
+        if (
+          lower.includes("password") &&
+          (lower.includes("weak") || lower.includes("least") || lower.includes("short"))
+        ) {
+          return { success: false, message: "password_too_weak", detail: raw };
+        }
+        if (lower.includes("invalid") && lower.includes("email")) {
+          return { success: false, message: "invalid_email", detail: raw };
+        }
+        return { success: false, message: "error_occurs", detail: raw };
       }
       return { success: true, message: "register_successful" };
-    } catch {
-      return { success: false, message: "error_occurs" };
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : String(err);
+      return { success: false, message: "error_occurs", detail: raw };
     }
   };
 
   const login = async (email: string, password: string) => {
     try {
       const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) {
         return { success: false, message: "incorrect" };
       }
-      return { success: true, message: "login_successful" };
+      const uid = data.user?.id;
+      let isAdmin = false;
+      if (uid) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", uid)
+          .maybeSingle();
+        isAdmin = Boolean(profile?.is_admin);
+      }
+      return { success: true, message: "login_successful", isAdmin };
     } catch {
       return { success: false, message: "incorrect" };
     }

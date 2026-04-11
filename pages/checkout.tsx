@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+
+import type { SavedAddressRow } from "../components/Auth/AddressBookPanel";
 import Image from "next/image";
 import { GetServerSideProps } from "next";
 
@@ -36,6 +38,7 @@ type Order = {
 
 const ShoppingCart = () => {
   const t = useTranslations("CartWishlist");
+  const tReg = useTranslations("LoginRegister");
   const { cart, clearCart } = useCart();
   const auth = useAuth();
   const [deli, setDeli] = useState<DeliveryType>("STORE_PICKUP");
@@ -50,9 +53,18 @@ const ShoppingCart = () => {
 
   // Structured address fields
   const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [pincode, setPincode] = useState("");
+
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddressRow[]>([]);
+  const [checkoutAddressMode, setCheckoutAddressMode] = useState<
+    "saved" | "new"
+  >("new");
+  const [selectedSavedAddressId, setSelectedSavedAddressId] = useState<
+    string | null
+  >(null);
 
   // Coupon
   const [couponCode, setCouponCode] = useState("");
@@ -67,16 +79,56 @@ const ShoppingCart = () => {
   const [sendEmail, setSendEmail] = useState(false);
 
   useEffect(() => {
-    if (auth.user) {
-      setName(auth.user.fullname);
-      setEmail(auth.user.email);
-      setPhone(auth.user.phone || "");
-    } else {
+    if (!auth.user) {
       setName("");
       setEmail("");
       setPhone("");
+      setSavedAddresses([]);
+      setCheckoutAddressMode("new");
+      setSelectedSavedAddressId(null);
+      setAddressLine1("");
+      setAddressLine2("");
+      setCity("");
+      setState("");
+      setPincode("");
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    setEmail(auth.user.email);
+
+    void (async () => {
+      const supabase = getSupabaseBrowserClient();
+      const { data } = await supabase
+        .from("addresses")
+        .select("*")
+        .eq("user_id", auth.user!.id)
+        .order("is_default", { ascending: false })
+        .order("created_at", { ascending: true });
+      const list = (data ?? []) as SavedAddressRow[];
+      setSavedAddresses(list);
+      const def = list.find((a) => a.is_default) || list[0];
+      if (def) {
+        setCheckoutAddressMode("saved");
+        setSelectedSavedAddressId(def.id);
+        setName(def.full_name);
+        setPhone(def.phone);
+        setAddressLine1(def.address_line1);
+        setAddressLine2(def.address_line2 ?? "");
+        setCity(def.city);
+        setState(def.state);
+        setPincode(def.pincode);
+      } else {
+        setCheckoutAddressMode("new");
+        setSelectedSavedAddressId(null);
+        setName(auth.user!.fullname);
+        setPhone(auth.user!.phone || "");
+        setAddressLine1("");
+        setAddressLine2("");
+        setCity("");
+        setState("");
+        setPincode("");
+      }
+    })();
   }, [auth.user]);
 
   // ── Coupon apply ────────────────────────────────────────────────────────────
@@ -125,14 +177,23 @@ const ShoppingCart = () => {
 
     setIsPlacing(true);
 
+    const wasGuestAtStart = !auth.user;
+
     try {
       if (!auth.user) {
         const regResponse = await auth.register!(
           email,
           name,
           password,
-          `${addressLine1}, ${city}, ${state} ${pincode}`,
-          phone
+          phone,
+          {
+            address_line1: addressLine1,
+            address_line2: addressLine2 || undefined,
+            city,
+            state,
+            pincode,
+            country: "India",
+          }
         );
         if (!regResponse.success) {
           if (regResponse.message === "alreadyExists") {
@@ -155,26 +216,72 @@ const ShoppingCart = () => {
         return;
       }
 
-      // ── Save to addresses table ──────────────────────────────────────────
-      const { data: addrRow, error: addrErr } = await supabase
-        .from("addresses")
-        .insert({
-          user_id: uid,
-          label: "Home",
-          full_name: name,
-          phone,
-          address_line1: addressLine1,
-          city,
-          state,
-          pincode,
-          is_default: true,
-        })
-        .select("id")
-        .single();
+      // ── Resolve shipping address row ─────────────────────────────────────
+      let addrRow: { id: string };
+      if (
+        auth.user &&
+        checkoutAddressMode === "saved" &&
+        selectedSavedAddressId
+      ) {
+        addrRow = { id: selectedSavedAddressId };
+      } else if (wasGuestAtStart) {
+        const { data: fromSignup } = await supabase
+          .from("addresses")
+          .select("id")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (fromSignup?.id) {
+          addrRow = { id: fromSignup.id };
+        } else {
+          const { data: inserted, error: addrErr } = await supabase
+            .from("addresses")
+            .insert({
+              user_id: uid,
+              label: "Home",
+              full_name: name,
+              phone,
+              address_line1: addressLine1,
+              address_line2: addressLine2.trim() || null,
+              city,
+              state,
+              pincode,
+              country: "India",
+              is_default: true,
+            })
+            .select("id")
+            .single();
+          if (addrErr || !inserted) {
+            setOrderError("error_occurs");
+            return;
+          }
+          addrRow = inserted as { id: string };
+        }
+      } else {
+        const { data: inserted, error: addrErr } = await supabase
+          .from("addresses")
+          .insert({
+            user_id: uid,
+            label: "Home",
+            full_name: name,
+            phone,
+            address_line1: addressLine1,
+            address_line2: addressLine2.trim() || null,
+            city,
+            state,
+            pincode,
+            country: "India",
+            is_default: savedAddresses.length === 0,
+          })
+          .select("id")
+          .single();
 
-      if (addrErr || !addrRow) {
-        setOrderError("error_occurs");
-        return;
+        if (addrErr || !inserted) {
+          setOrderError("error_occurs");
+          return;
+        }
+        addrRow = inserted as { id: string };
       }
 
       const sub = Number(subtotal);
@@ -260,11 +367,16 @@ const ShoppingCart = () => {
   };
 
   const disableOrder = (() => {
-    const baseFields =
-      name !== "" && email !== "" && phone !== "" &&
+    const contactOk = name !== "" && email !== "" && phone !== "";
+    const addrOk =
       addressLine1 !== "" && city !== "" && state !== "" && pincode !== "";
-    if (!auth.user) return !(baseFields && password !== "");
-    return !baseFields;
+    if (!auth.user) {
+      return !(contactOk && addrOk && password !== "");
+    }
+    if (checkoutAddressMode === "saved" && selectedSavedAddressId) {
+      return !contactOk;
+    }
+    return !(contactOk && addrOk);
   })();
 
   let subtotal: number = 0;
@@ -386,69 +498,163 @@ const ShoppingCart = () => {
 
               {/* ── Shipping address ── */}
               <p className="text-xs uppercase tracking-widest text-gray400 mt-6 mb-3 border-b border-gray200 pb-2">
-                Shipping Address
+                {tReg("shipping_address_section")}
               </p>
 
-              <div className="my-4">
-                <label htmlFor="address_line1" className="text-lg">
-                  Address Line
-                </label>
-                <Input
-                  name="address_line1"
-                  type="text"
-                  extraClass="w-full mt-1 mb-2"
-                  border="border-2 border-gray400"
-                  value={addressLine1}
-                  onChange={(e) => setAddressLine1((e.target as HTMLInputElement).value)}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 my-4">
-                <div>
-                  <label htmlFor="city" className="text-lg">
-                    City
+              {auth.user && savedAddresses.length > 0 ? (
+                <div className="my-4">
+                  <label htmlFor="checkout_saved_addr" className="text-lg block mb-1">
+                    {tReg("saved_addresses")}
                   </label>
-                  <Input
-                    name="city"
-                    type="text"
-                    extraClass="w-full mt-1 mb-2"
-                    border="border-2 border-gray400"
-                    value={city}
-                    onChange={(e) => setCity((e.target as HTMLInputElement).value)}
-                    required
-                  />
+                  <select
+                    id="checkout_saved_addr"
+                    className="w-full border-2 border-gray400 px-3 py-2 rounded-sm bg-white"
+                    value={
+                      checkoutAddressMode === "saved" && selectedSavedAddressId
+                        ? selectedSavedAddressId
+                        : "new"
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "new") {
+                        setCheckoutAddressMode("new");
+                        setSelectedSavedAddressId(null);
+                        setAddressLine1("");
+                        setAddressLine2("");
+                        setCity("");
+                        setState("");
+                        setPincode("");
+                        return;
+                      }
+                      setCheckoutAddressMode("saved");
+                      setSelectedSavedAddressId(v);
+                      const a = savedAddresses.find((x) => x.id === v);
+                      if (a) {
+                        setName(a.full_name);
+                        setPhone(a.phone);
+                        setAddressLine1(a.address_line1);
+                        setAddressLine2(a.address_line2 ?? "");
+                        setCity(a.city);
+                        setState(a.state);
+                        setPincode(a.pincode);
+                      }
+                    }}
+                  >
+                    <option value="new">{tReg("checkout_new_address")}</option>
+                    {savedAddresses.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {(a.label || "Home") +
+                          " — " +
+                          a.city +
+                          (a.is_default ? " ★" : "")}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div>
-                  <label htmlFor="state" className="text-lg">
-                    State
-                  </label>
-                  <Input
-                    name="state"
-                    type="text"
-                    extraClass="w-full mt-1 mb-2"
-                    border="border-2 border-gray400"
-                    value={state}
-                    onChange={(e) => setState((e.target as HTMLInputElement).value)}
-                    required
-                  />
-                </div>
-              </div>
+              ) : null}
 
-              <div className="my-4 w-1/2">
-                <label htmlFor="pincode" className="text-lg">
-                  Pincode / ZIP
-                </label>
-                <Input
-                  name="pincode"
-                  type="text"
-                  extraClass="w-full mt-1 mb-2"
-                  border="border-2 border-gray400"
-                  value={pincode}
-                  onChange={(e) => setPincode((e.target as HTMLInputElement).value)}
-                  required
-                />
-              </div>
+              {auth.user &&
+              checkoutAddressMode === "saved" &&
+              selectedSavedAddressId ? (
+                <div className="my-4 rounded border border-gray200 bg-gray100 p-4 text-sm text-gray500">
+                  <p className="font-medium text-gray900">{name}</p>
+                  <p>{phone}</p>
+                  <p className="mt-2">
+                    {addressLine1}
+                    {addressLine2 ? `, ${addressLine2}` : ""}
+                  </p>
+                  <p>
+                    {city}, {state} {pincode}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="my-4">
+                    <label htmlFor="address_line1" className="text-lg">
+                      {tReg("address_line1")}
+                    </label>
+                    <Input
+                      name="address_line1"
+                      type="text"
+                      extraClass="w-full mt-1 mb-2"
+                      border="border-2 border-gray400"
+                      value={addressLine1}
+                      onChange={(e) =>
+                        setAddressLine1((e.target as HTMLInputElement).value)
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="my-4">
+                    <label htmlFor="address_line2" className="text-lg">
+                      {tReg("address_line2_optional")}
+                    </label>
+                    <Input
+                      name="address_line2"
+                      type="text"
+                      extraClass="w-full mt-1 mb-2"
+                      border="border-2 border-gray400"
+                      value={addressLine2}
+                      onChange={(e) =>
+                        setAddressLine2((e.target as HTMLInputElement).value)
+                      }
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 my-4">
+                    <div>
+                      <label htmlFor="city" className="text-lg">
+                        {tReg("city")}
+                      </label>
+                      <Input
+                        name="city"
+                        type="text"
+                        extraClass="w-full mt-1 mb-2"
+                        border="border-2 border-gray400"
+                        value={city}
+                        onChange={(e) =>
+                          setCity((e.target as HTMLInputElement).value)
+                        }
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="state" className="text-lg">
+                        {tReg("state")}
+                      </label>
+                      <Input
+                        name="state"
+                        type="text"
+                        extraClass="w-full mt-1 mb-2"
+                        border="border-2 border-gray400"
+                        value={state}
+                        onChange={(e) =>
+                          setState((e.target as HTMLInputElement).value)
+                        }
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="my-4 w-1/2">
+                    <label htmlFor="pincode" className="text-lg">
+                      {tReg("pincode")}
+                    </label>
+                    <Input
+                      name="pincode"
+                      type="text"
+                      extraClass="w-full mt-1 mb-2"
+                      border="border-2 border-gray400"
+                      value={pincode}
+                      onChange={(e) =>
+                        setPincode((e.target as HTMLInputElement).value)
+                      }
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
               {!auth.user && (
                 <div className="text-sm text-gray400 mt-8 leading-6">

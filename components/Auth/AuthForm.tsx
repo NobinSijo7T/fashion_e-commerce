@@ -7,6 +7,7 @@ import Button from "../Buttons/Button";
 import Login from "./Login";
 import Register from "./Register";
 import ForgotPassword from "./ForgotPassword";
+import { AddressBookPanel } from "./AddressBookPanel";
 
 type CurrentPage = "login" | "register" | "forgot-password";
 
@@ -189,7 +190,7 @@ const SuccessModal = ({
         {/* {t("register_successful")} */}
         {successMsg !== "" ? t(successMsg) : t("profile")}
       </Dialog.Title>
-      <div className="mb-12">
+      <div className="mb-6">
         <div>
           {t("name")} - {auth.user?.fullname}
         </div>
@@ -199,11 +200,14 @@ const SuccessModal = ({
         <div>
           {t("phone")} - {auth.user?.phone && auth.user?.phone}
         </div>
-        <div>
-          {t("shipping_address")} -{" "}
-          {auth.user?.shippingAddress && auth.user?.shippingAddress}
-        </div>
       </div>
+      {auth.user?.id ? (
+        <AddressBookPanel
+          userId={auth.user.id}
+          profileFullName={auth.user.fullname}
+          profilePhone={auth.user.phone ?? ""}
+        />
+      ) : null}
       <div className="flex justify-center items-center">
         <Button value={t("logout")} onClick={handleLogout} />
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Dialog } from "@headlessui/react";
+import { useRouter } from "next/router";
 import { useTranslations } from "next-intl";
 
 import { useAuth } from "../../context/AuthContext";
@@ -22,6 +23,7 @@ const Login: React.FC<Props> = ({
   setSuccessMsg,
 }) => {
   const auth = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const t = useTranslations("LoginRegister");
@@ -30,6 +32,15 @@ const Login: React.FC<Props> = ({
     e.preventDefault();
     const loginResponse = await auth.login!(email, password);
     if (loginResponse.success) {
+      if (loginResponse.isAdmin) {
+        const locale = router.locale;
+        const path =
+          locale && router.defaultLocale && locale !== router.defaultLocale
+            ? `/${locale}/admin/dashboard`
+            : "/admin/dashboard";
+        void router.push(path);
+        return;
+      }
       setSuccessMsg("login_successful");
     } else {
       setErrorMsg("incorrect_email_password");

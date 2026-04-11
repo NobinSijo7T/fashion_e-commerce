@@ -6,6 +6,8 @@ type Props = {
   placeholder?: string;
   extraClass?: string;
   required?: boolean;
+  minLength?: number;
+  autoComplete?: string;
   border?: string;
   id?: string;
   label?: string;
@@ -20,6 +22,8 @@ const Input: FC<Props> = ({
   placeholder,
   extraClass,
   required = false,
+  minLength,
+  autoComplete,
   border = "",
   label = "",
   onChange,
@@ -35,6 +39,8 @@ const Input: FC<Props> = ({
     name={name}
     placeholder={placeholder}
     required={required}
+    minLength={minLength}
+    autoComplete={autoComplete}
     onChange={onChange}
     value={value}
     aria-label={label}

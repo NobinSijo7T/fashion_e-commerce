@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import { SlideOver } from "./SlideOver";
 import { ImageUploader } from "./ImageUploader";
+import { formatInr } from "../../lib/formatInr";
 import { supabase } from "../../src/lib/supabase";
 
 type Cat = { id: string; name: string; slug: string };
@@ -347,10 +348,11 @@ export const ProductEditor: FC<Props> = ({
             </select>
           </label>
           <label className="text-xs text-[#9ca3af]">
-            Base price
+            Base price (INR)
             <input
               type="number"
               step="0.01"
+              min={0}
               className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-3 py-2 text-sm text-white"
               value={form.base_price}
               onChange={(e) =>
@@ -378,9 +380,9 @@ export const ProductEditor: FC<Props> = ({
             />
           </label>
           <div className="text-xs text-[#9ca3af]">
-            Final price (computed)
+            Final price (computed, INR)
             <div className="mt-2 rounded-lg border border-[#2a2a2a] bg-[#0f0f0f] px-3 py-2 text-sm text-indigo-300">
-              ${finalPrice.toFixed(2)}
+              {formatInr(finalPrice)}
             </div>
           </div>
           <label className="text-xs text-[#9ca3af] sm:col-span-2">
@@ -457,58 +459,93 @@ export const ProductEditor: FC<Props> = ({
 
         <div className="border-t border-[#2a2a2a] pt-6">
           <h4 className="text-sm font-semibold text-white">Variants</h4>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <input
-              placeholder="Size"
-              className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
-              value={vForm.size}
-              onChange={(e) => setVForm((v) => ({ ...v, size: e.target.value }))}
-            />
-            <input
-              placeholder="Color"
-              className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
-              value={vForm.color}
-              onChange={(e) => setVForm((v) => ({ ...v, color: e.target.value }))}
-            />
-            <input
-              type="color"
-              className="h-10 w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a]"
-              value={vForm.color_hex}
-              onChange={(e) =>
-                setVForm((v) => ({ ...v, color_hex: e.target.value }))
-              }
-            />
-            <input
-              type="number"
-              placeholder="Stock"
-              className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
-              value={vForm.stock_quantity}
-              onChange={(e) =>
-                setVForm((v) => ({
-                  ...v,
-                  stock_quantity: parseInt(e.target.value, 10) || 0,
-                }))
-              }
-            />
-            <input
-              placeholder="SKU"
-              className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
-              value={vForm.sku}
-              onChange={(e) => setVForm((v) => ({ ...v, sku: e.target.value }))}
-            />
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Add. price"
-              className="rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
-              value={vForm.additional_price}
-              onChange={(e) =>
-                setVForm((v) => ({
-                  ...v,
-                  additional_price: parseFloat(e.target.value) || 0,
-                }))
-              }
-            />
+          <p className="mt-1 text-xs text-[#6b7280]">
+            Enter size codes (e.g. UK 10, US 9), color name, stock units, and any
+            extra amount in INR added on top of the product final price.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <label className="block text-xs text-[#9ca3af] sm:col-span-1">
+              Size (UK, US, or other size variants)
+              <input
+                className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
+                placeholder="e.g. UK 10 / US 9"
+                value={vForm.size}
+                onChange={(e) =>
+                  setVForm((v) => ({ ...v, size: e.target.value }))
+                }
+              />
+            </label>
+            <label className="block text-xs text-[#9ca3af] sm:col-span-1">
+              Color (variant name)
+              <input
+                className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
+                placeholder="e.g. Navy"
+                value={vForm.color}
+                onChange={(e) =>
+                  setVForm((v) => ({ ...v, color: e.target.value }))
+                }
+              />
+            </label>
+            <label className="block text-xs text-[#9ca3af] sm:col-span-1">
+              Color swatch (hex)
+              <input
+                type="color"
+                title="Pick color for this variant"
+                className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-1 py-1"
+                value={vForm.color_hex}
+                onChange={(e) =>
+                  setVForm((v) => ({ ...v, color_hex: e.target.value }))
+                }
+              />
+            </label>
+            <label className="block text-xs text-[#9ca3af] sm:col-span-1">
+              Stock number
+              <input
+                type="number"
+                min={0}
+                className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
+                placeholder="Units in stock"
+                value={vForm.stock_quantity}
+                onChange={(e) =>
+                  setVForm((v) => ({
+                    ...v,
+                    stock_quantity: parseInt(e.target.value, 10) || 0,
+                  }))
+                }
+              />
+            </label>
+            <label className="block text-xs text-[#9ca3af] sm:col-span-1">
+              <span className="text-[#d1d5db]">
+                SKU — Stock Keeping Unit
+              </span>
+              <span className="mt-0.5 block max-w-md text-[11px] leading-snug text-[#6b7280]">
+                A unique code for this exact variant (size + color) so you can
+                track it in inventory, on shelves, or in barcodes. Optional.
+              </span>
+              <input
+                className="mt-1.5 w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
+                placeholder="e.g. SHRT-NVY-M-001"
+                value={vForm.sku}
+                onChange={(e) => setVForm((v) => ({ ...v, sku: e.target.value }))}
+              />
+            </label>
+            <label className="block text-xs text-[#9ca3af] sm:col-span-1">
+              Additional price (INR)
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                className="mt-1 w-full rounded-lg border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-2 text-sm text-white"
+                placeholder="0.00"
+                value={vForm.additional_price}
+                onChange={(e) =>
+                  setVForm((v) => ({
+                    ...v,
+                    additional_price: parseFloat(e.target.value) || 0,
+                  }))
+                }
+              />
+            </label>
           </div>
           <div className="mt-2 flex gap-2">
             <button
@@ -542,11 +579,11 @@ export const ProductEditor: FC<Props> = ({
             <table className="w-full text-left text-xs text-[#9ca3af]">
               <thead>
                 <tr className="border-b border-[#2a2a2a]">
-                  <th className="py-2">Size</th>
+                  <th className="py-2">Size (UK/US…)</th>
                   <th className="py-2">Color</th>
-                  <th className="py-2">Stock</th>
-                  <th className="py-2">SKU</th>
-                  <th className="py-2">+Price</th>
+                  <th className="py-2">Stock #</th>
+                  <th className="py-2">Stock Keeping Unit (SKU)</th>
+                  <th className="py-2">Add. price (INR)</th>
                   <th className="py-2"></th>
                 </tr>
               </thead>
@@ -555,9 +592,11 @@ export const ProductEditor: FC<Props> = ({
                   <tr key={v.id} className="border-b border-[#2a2a2a]">
                     <td className="py-2 text-white">{v.size}</td>
                     <td className="py-2">{v.color}</td>
-                    <td className="py-2">{v.stock_quantity}</td>
-                    <td className="py-2">{v.sku}</td>
-                    <td className="py-2">{v.additional_price}</td>
+                    <td className="py-2">{v.stock_quantity ?? "—"}</td>
+                    <td className="py-2">{v.sku ?? "—"}</td>
+                    <td className="py-2 text-white">
+                      {formatInr(Number(v.additional_price ?? 0))}
+                    </td>
                     <td className="py-2">
                       <button
                         type="button"
