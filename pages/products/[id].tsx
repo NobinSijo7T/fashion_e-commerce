@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GetServerSideProps } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Disclosure } from "@headlessui/react";
 import { useTranslations } from "next-intl";
-import axios from "axios";
 
 import Heart from "../../public/icons/Heart";
 import DownArrow from "../../public/icons/DownArrow";
@@ -19,26 +18,73 @@ import Card from "../../components/Card/Card";
 // swiperjs
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
-import { apiProductsType, itemType } from "../../context/cart/cart-types";
+import { itemType } from "../../context/cart/cart-types";
 import { useWishlist } from "../../context/wishlist/WishlistProvider";
 import { useCart } from "../../context/cart/CartProvider";
 import HeartSolid from "../../public/icons/HeartSolid";
+import {
+  fetchProductById,
+  fetchRelatedProducts,
+} from "../../lib/supabase/productQueries";
+import { mapDbProductToItem, type DbProductVariant } from "../../lib/supabase/mapProduct";
+
+function num(v: string | number | null | undefined): number {
+  if (v == null) return 0;
+  return typeof v === "number" ? v : parseFloat(v);
+}
 
 type Props = {
   product: itemType;
+  productBaseFinal: number;
+  variants: DbProductVariant[];
   products: itemType[];
 };
 
-const Product: React.FC<Props> = ({ product, products }) => {
+const Product: React.FC<Props> = ({
+  product,
+  productBaseFinal,
+  variants,
+  products,
+}) => {
   const img1 = product.img1;
   const img2 = product.img2;
 
   const { addItem } = useCart();
   const { wishlist, addToWishlist, deleteWishlistItem } = useWishlist();
-  const [size, setSize] = useState("M");
+
+  const sizes = useMemo(
+    () => [...new Set(variants.map((v) => v.size))],
+    [variants]
+  );
+
+  const [size, setSize] = useState(sizes[0] ?? "M");
+  const [color, setColor] = useState(() => {
+    const sz = sizes[0];
+    const pool = sz ? variants.filter((v) => v.size === sz) : variants;
+    return pool[0]?.color ?? variants[0]?.color ?? "";
+  });
   const [mainImg, setMainImg] = useState(img1);
   const [currentQty, setCurrentQty] = useState(1);
   const t = useTranslations("Category");
+
+  const colorsForSize = useMemo(
+    () => [...new Set(variants.filter((v) => v.size === size).map((v) => v.color))],
+    [variants, size]
+  );
+
+  useEffect(() => {
+    if (!colorsForSize.includes(color)) {
+      setColor(colorsForSize[0] ?? "");
+    }
+  }, [size, colorsForSize, color]);
+
+  const selectedVariant = useMemo(() => {
+    return variants.find((v) => v.size === size && v.color === color) ?? variants[0];
+  }, [variants, size, color]);
+
+  const linePrice =
+    productBaseFinal + num(selectedVariant?.additional_price);
+  const lineStock = selectedVariant?.stock_quantity ?? 0;
 
   const alreadyWishlisted =
     wishlist.filter((wItem) => wItem.id === product.id).length > 0;
@@ -51,9 +97,13 @@ const Product: React.FC<Props> = ({ product, products }) => {
     setSize(value);
   };
 
-  const currentItem = {
+  const currentItem: itemType = {
     ...product,
+    price: linePrice,
     qty: currentQty,
+    variantId: selectedVariant?.id,
+    size: selectedVariant?.size,
+    color: selectedVariant?.color,
   };
 
   const handleWishlist = () => {
@@ -77,10 +127,12 @@ const Product: React.FC<Props> = ({ product, products }) => {
               </Link>{" "}
               /{" "}
               <Link
-                href={`/product-category/${product.categoryName}`}
+                href={`/product-category/${encodeURIComponent(
+                  product.categorySlug ?? "new-arrivals"
+                )}`}
                 className="text-gray400 capitalize"
               >
-                {t(product.categoryName as string)}
+                {product.categoryName ?? product.categorySlug ?? ""}
               </Link>{" "}
               / <span>{product.name}</span>
             </div>
@@ -158,47 +210,55 @@ const Product: React.FC<Props> = ({ product, products }) => {
           <div className="infoSection w-full md:w-1/2 h-auto py-8 sm:pl-4 flex flex-col">
             <h1 className="text-3xl mb-4">{product.name}</h1>
             <span className="text-2xl text-gray400 mb-2">
-              $ {product.price}
+              $ {linePrice.toFixed(2)}
             </span>
             <span className="mb-2 text-justify">{product.description}</span>
             <span className="mb-2">
-              {t("availability")}: {t("in_stock")}
+              {t("availability")}:{" "}
+              {lineStock > 0 ? t("in_stock") : t("out_of_stock")}
             </span>
             <span className="mb-2">
               {t("size")}: {size}
             </span>
-            <div className="sizeContainer flex space-x-4 text-sm mb-4">
-              <div
-                onClick={() => handleSize("S")}
-                className={`w-8 h-8 flex items-center justify-center border ${
-                  size === "S"
-                    ? "border-gray500"
-                    : "border-gray300 text-gray400"
-                } cursor-pointer hover:bg-gray500 hover:text-gray100`}
-              >
-                S
-              </div>
-              <div
-                onClick={() => handleSize("M")}
-                className={`w-8 h-8 flex items-center justify-center border ${
-                  size === "M"
-                    ? "border-gray500"
-                    : "border-gray300 text-gray400"
-                } cursor-pointer hover:bg-gray500 hover:text-gray100`}
-              >
-                M
-              </div>
-              <div
-                onClick={() => handleSize("L")}
-                className={`w-8 h-8 flex items-center justify-center border ${
-                  size === "L"
-                    ? "border-gray500"
-                    : "border-gray300 text-gray400"
-                } cursor-pointer hover:bg-gray500 hover:text-gray100`}
-              >
-                L
-              </div>
+            <div className="sizeContainer flex flex-wrap gap-2 text-sm mb-4">
+              {sizes.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleSize(s)}
+                  className={`min-w-[2rem] px-2 h-8 flex items-center justify-center border ${
+                    size === s
+                      ? "border-gray500"
+                      : "border-gray300 text-gray400"
+                  } cursor-pointer hover:bg-gray500 hover:text-gray100`}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
+            {colorsForSize.length > 0 && (
+              <div className="mb-4">
+                <span className="block mb-2 text-sm text-gray500">
+                  {t("color")}:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {colorsForSize.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setColor(c)}
+                      className={`rounded-full border px-3 py-1 text-sm ${
+                        color === c
+                          ? "border-gray500 bg-gray100"
+                          : "border-gray300 text-gray400"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="addToCart flex flex-col sm:flex-row md:flex-col lg:flex-row space-y-4 sm:space-y-0 mb-4">
               <div className="plusOrMinus h-12 flex border justify-center border-gray300 divide-x-2 divide-gray300 mb-4 mr-0 sm:mr-4 md:mr-0 lg:mr-4">
                 <div
@@ -224,7 +284,11 @@ const Product: React.FC<Props> = ({ product, products }) => {
                   value={t("add_to_cart")}
                   size="lg"
                   extraClass={`flex-grow text-center whitespace-nowrap`}
-                  onClick={() => addItem!(currentItem)}
+                  onClick={() =>
+                    selectedVariant && lineStock > 0
+                      ? addItem!(currentItem)
+                      : undefined
+                  }
                 />
                 <GhostButton onClick={handleWishlist}>
                   {alreadyWishlisted ? (
@@ -306,48 +370,28 @@ export const getServerSideProps: GetServerSideProps = async ({
   locale,
 }) => {
   const paramId = params!.id as string;
-  const res = await axios.get(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/${paramId}?include=category`
+  const { product: row, error } = await fetchProductById(paramId);
+  if (error || !row) {
+    return { notFound: true };
+  }
+
+  const productBaseFinal = num(row.final_price);
+  const variants = (row.product_variants ?? []) as DbProductVariant[];
+  const product = mapDbProductToItem(row);
+
+  const { items: related } = await fetchRelatedProducts(
+    row.category_id ?? null,
+    paramId,
+    8
   );
-  const fetchedProduct: apiProductsType = res.data.data;
+  const shuffled = [...related].sort(() => 0.5 - Math.random());
+  const products = shuffled.slice(0, 5);
 
-  let product: itemType = {
-    id: fetchedProduct.id,
-    name: fetchedProduct.name,
-    price: fetchedProduct.price,
-    detail: fetchedProduct.detail,
-    img1: fetchedProduct.image1,
-    img2: fetchedProduct.image2,
-    categoryName: fetchedProduct!.category!.name,
-  };
-
-  // Might be temporary solution for suggested products
-  const randomProductRes = await axios.get(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products?category=${product.categoryName}`
-  );
-  const fetchedProducts: apiProductsType[] = randomProductRes.data.data;
-
-  // Shuffle array
-  const shuffled = fetchedProducts.sort(() => 0.5 - Math.random());
-
-  // Get sub-array of first 5 elements after shuffled
-  let randomFetchedProducts = shuffled.slice(0, 5);
-
-  let products: itemType[] = [];
-  randomFetchedProducts.forEach((randomProduct: apiProductsType) => {
-    products.push({
-      id: randomProduct.id,
-      name: randomProduct.name,
-      price: randomProduct.price,
-      img1: randomProduct.image1,
-      img2: randomProduct.image2,
-    });
-  });
-
-  // Pass data to the page via props
   return {
     props: {
       product,
+      productBaseFinal,
+      variants,
       products,
       messages: (await import(`../../messages/common/${locale}.json`)).default,
     },

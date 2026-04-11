@@ -2,6 +2,7 @@ import { NextComponentType, NextPageContext } from "next";
 import Router, { useRouter } from "next/router";
 import NProgress from "nprogress";
 import { IntlProvider } from "next-intl";
+import { Toaster } from "react-hot-toast";
 
 import { ProvideCart } from "../context/cart/CartProvider";
 import { ProvideWishlist } from "../context/wishlist/WishlistProvider";
@@ -31,17 +32,28 @@ type AppCustomProps = {
 const MyApp = ({ Component, pageProps }: AppCustomProps) => {
   const router = useRouter();
   const locale = pageProps.locale || router.locale || "en";
-  
+  const messages = pageProps?.messages ?? {};
+  const isAdminRoute = router.pathname.startsWith("/admin");
+
   return (
     <IntlProvider
       locale={locale}
-      messages={pageProps?.messages}
+      messages={messages}
       timeZone="Asia/Kolkata"
     >
       <ProvideAuth>
         <ProvideWishlist>
           <ProvideCart>
             <Component {...pageProps} />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                className: isAdminRoute
+                  ? "!bg-[#141414] !text-white !border !border-[#2a2a2a]"
+                  : "",
+                duration: 3500,
+              }}
+            />
           </ProvideCart>
         </ProvideWishlist>
       </ProvideAuth>

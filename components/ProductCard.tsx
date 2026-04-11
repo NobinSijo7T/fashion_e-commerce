@@ -34,7 +34,7 @@ const ProductCard: FC<Props> = ({ item }) => {
 
   const itemLink = `/products/${encodeURIComponent(id)}`;
   const categoryLabel =
-    item.categoryName ?? category?.name ?? "Collection";
+    item.brand ?? item.categoryName ?? category?.name ?? "Collection";
 
   const alreadyWishlisted =
     wishlist.filter((wItem) => wItem.id === id).length > 0;

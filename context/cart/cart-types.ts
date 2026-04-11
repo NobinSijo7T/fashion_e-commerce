@@ -6,19 +6,24 @@ export const SET_CART = "SET_CART";
 export const CLEAR_CART = "CLEAR_CART";
 
 export type commonType = {
-  id: number;
+  id: string;
   name: string;
   price: number;
   qty?: number | undefined;
   discountPercent?: number;
   description?: string;
   detail?: string;
-  categoryId?: number;
+  categoryId?: string;
   stock?: number;
   createdAt?: string;
   updatedAt?: string | null;
+  /** Selected variant for cart lines (required for DB cart when logged in). */
+  variantId?: string;
+  size?: string;
+  color?: string;
+  categorySlug?: string;
   category?: {
-    id?: number;
+    id?: string;
     name?: string;
     description?: string;
     thumbnailImage?: string;
@@ -31,8 +36,11 @@ export interface itemType extends commonType {
   img1?: string;
   img2?: string;
   categoryName?: string;
+  brand?: string;
+  isFeatured?: boolean;
 }
 
+/** @deprecated Legacy API shape — prefer Supabase `itemType`. */
 export interface apiProductsType extends commonType {
   image1?: string;
   image2?: string;

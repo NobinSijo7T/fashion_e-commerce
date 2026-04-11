@@ -26,9 +26,8 @@ const ForgotPassword: React.FC<Props> = ({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const forgotPasswordResponse = await auth.forgotPassword!(email);
-    console.log(forgotPasswordResponse);
     if (forgotPasswordResponse.success) {
-      setSuccessMsg("login_successful");
+      setSuccessMsg("password_reset_sent");
     } else {
       setErrorMsg("incorrect_email_password");
     }

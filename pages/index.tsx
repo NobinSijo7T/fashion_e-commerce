@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import { GetServerSideProps } from "next";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import axios from "axios";
 
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
@@ -10,12 +9,19 @@ import Button from "../components/Buttons/Button";
 import HeroBanner from "../components/HeroBanner";
 import OverlayContainer from "../components/OverlayContainer/OverlayContainer";
 import Card from "../components/Card/Card";
-import TestiSlider from "../components/TestiSlider/TestiSlider";
+import TestimonialsSection from "../components/TestimonialsSection";
 import StatsStrip from "../components/StatsStrip";
 import SectionHeader from "../components/SectionHeader";
-import FilterRow, { FilterCategory } from "../components/FilterRow";
-import { apiProductsType, itemType } from "../context/cart/cart-types";
+import FilterRow, { FilterCategory, FILTER_MATCHERS } from "../components/FilterRow";
+import { itemType } from "../context/cart/cart-types";
 import LinkButton from "../components/Buttons/LinkButton";
+import { fetchProductsPage } from "../lib/supabase/productQueries";
+import { getSupabaseBrowserClient } from "../lib/supabase/client";
+import { PRODUCT_CARD_SELECT } from "../lib/supabase/productSelect";
+import {
+  mapDbProductToItem,
+  type DbProductRow,
+} from "../lib/supabase/mapProduct";
 
 // /bg-img/ourshop.png
 import ourShop from "../public/bg-img/ourshop.png";
@@ -32,35 +38,36 @@ const Home: React.FC<Props> = ({ products }) => {
 
   const filteredItems = useMemo(() => {
     if (activeFilter === "All") return currentItems;
-    const matchers: Record<Exclude<FilterCategory, "All">, string[]> = {
-      Dresses: ["dress", "gown"],
-      Tops: ["top", "shirt", "tee", "blouse"],
-      Bottoms: ["bottom", "pant", "jean", "short", "skirt"],
-      Outerwear: ["outer", "jacket", "coat", "hoodie", "blazer"],
-      Bags: ["bag"],
-    };
-    const keys = matchers[activeFilter];
+    const keys = FILTER_MATCHERS[activeFilter];
     return currentItems.filter((p) => {
-      const name = (p.category?.name ?? p.categoryName ?? "").toLowerCase();
-      return keys.some((k) => name.includes(k));
+      const catName = (p.categoryName ?? p.category?.name ?? "").toLowerCase();
+      return keys.some((k) => catName.includes(k));
     });
   }, [currentItems, activeFilter]);
 
   useEffect(() => {
     if (!isFetching) return;
     const fetchData = async () => {
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_PROD_BACKEND_URL}/api/v1/products?order_by=createdAt.desc&offset=${currentItems.length}&limit=10`
-      );
-      const fetchedProducts = res.data.data.map((product: apiProductsType) => ({
-        ...product,
-        img1: product.image1,
-        img2: product.image2,
-      }));
-      setCurrentItems((products) => [...products, ...fetchedProducts]);
-      setIsFetching(false);
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const from = currentItems.length;
+        const { data, error } = await supabase
+          .from("products")
+          .select(PRODUCT_CARD_SELECT)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .range(from, from + 9);
+        if (!error && data) {
+          const rows = data as unknown as DbProductRow[];
+          setCurrentItems((prev) => [...prev, ...rows.map(mapDbProductToItem)]);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsFetching(false);
+      }
     };
-    fetchData();
+    void fetchData();
   }, [isFetching, currentItems.length]);
 
   const handleSeemore = async (
@@ -153,12 +160,11 @@ const Home: React.FC<Props> = ({ products }) => {
           </div>
         </section>
 
-        {/* ===== Testimonial Section ===== */}
-        <section className="hidden h-full w-full flex-col items-center border-y border-haru-border bg-haru-surface py-16 md:flex">
-          <h2 className="font-display text-3xl font-extrabold uppercase text-haru-text">
-            {t("testimonial")}
-          </h2>
-          <TestiSlider />
+        {/* ===== Testimonials (stacked cards) ===== */}
+        <section className="border-y border-haru-border bg-white py-16 lg:py-24">
+          <div className="app-max-width app-x-padding">
+            <TestimonialsSection />
+          </div>
         </section>
 
         {/* ===== Featured Products Section ===== */}
@@ -208,27 +214,8 @@ export const getServerSideProps: GetServerSideProps = async ({
 }) => {
   let products: itemType[] = [];
   try {
-    const res = await axios.get(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products?order_by=createdAt.desc&limit=10`
-    );
-    const fetchedProducts = res.data;
-    fetchedProducts.data.forEach((product: apiProductsType) => {
-      products = [
-        ...products,
-        {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          img1: product.image1,
-          img2: product.image2,
-          discountPercent: product.discountPercent,
-          createdAt: product.createdAt,
-          stock: product.stock,
-          category: product.category,
-          categoryName: product.category?.name,
-        },
-      ];
-    });
+    const { items } = await fetchProductsPage({ offset: 0, limit: 10 });
+    products = items;
   } catch (err) {
     console.error("Failed to fetch products:", err);
   }

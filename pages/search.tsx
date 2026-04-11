@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
-import { GetServerSideProps, GetStaticPaths, GetStaticProps } from "next";
-import { useRouter } from "next/router";
+import { GetServerSideProps } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import Card from "../components/Card/Card";
-import Pagination from "../components/Util/Pagination";
-import useWindowSize from "../components/Util/useWindowSize";
-import { apiProductsType, itemType } from "../context/cart/cart-types";
-import axios from "axios";
+import { itemType } from "../context/cart/cart-types";
+import { searchProducts } from "../lib/supabase/productQueries";
 
 type Props = {
   items: itemType[];
@@ -78,29 +74,17 @@ const Search: React.FC<Props> = ({ items, searchWord }) => {
 
 export const getServerSideProps: GetServerSideProps = async ({
   locale,
-  query: { q = "" },
+  query,
 }) => {
-  const res = await axios.get(
-    `${process.env.NEXT_PUBLIC_PROD_BACKEND_URL}/api/v1/products/search?q=${q}`
-  );
-  const fetchedProducts: apiProductsType[] = res.data.data.map(
-    (product: apiProductsType) => ({
-      ...product,
-      img1: product.image1,
-      img2: product.image2,
-    })
-  );
-
-  let items: apiProductsType[] = [];
-  fetchedProducts.forEach((product: apiProductsType) => {
-    items.push(product);
-  });
+  const qRaw = query.q ?? "";
+  const q = String(Array.isArray(qRaw) ? qRaw[0] : qRaw);
+  const { items } = await searchProducts(q);
 
   return {
     props: {
       messages: (await import(`../messages/common/${locale}.json`)).default,
       items,
-      searchWord: q,
+      searchWord: q || "",
     },
   };
 };

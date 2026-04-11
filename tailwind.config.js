@@ -1,5 +1,10 @@
 module.exports = {
-  purge: ["./pages/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
+  purge: [
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+    "./hooks/**/*.{js,ts,jsx,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
   darkMode: false, // or 'media' or 'class'
   theme: {
     screens: {
@@ -22,6 +27,8 @@ module.exports = {
         "sans-serif",
       ],
       display: ["Syne", "ui-sans-serif", "system-ui", "sans-serif"],
+      dm: ["DM Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+      quote: ["Playfair Display", "Georgia", "serif"],
       mono: ["DM Mono", "ui-monospace", "monospace"],
     },
     colors: {

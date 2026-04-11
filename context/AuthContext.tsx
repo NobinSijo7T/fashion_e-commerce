@@ -1,9 +1,25 @@
-import axios from "axios";
-import { getCookie, deleteCookie, setCookie } from "cookies-next";
-import React, { useState, useEffect, useContext, createContext } from "react";
+import { deleteCookie } from "cookies-next";
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  createContext,
+} from "react";
+import type { User as SupabaseAuthUser } from "@supabase/supabase-js";
+
+import { getSupabaseBrowserClient } from "../lib/supabase/client";
+
+export type User = {
+  id: string;
+  email: string;
+  fullname: string;
+  shippingAddress?: string;
+  phone?: string;
+};
 
 type authType = {
-  user: null | User;
+  user: User | null;
+  authReady: boolean;
   register?: (
     email: string,
     fullname: string,
@@ -30,46 +46,95 @@ type authType = {
 
 const initialAuth: authType = {
   user: null,
+  authReady: false,
 };
 
 const authContext = createContext<authType>(initialAuth);
 
-type User = {
-  id: number;
-  email: string;
-  fullname: string;
-  shippingAddress?: string;
-  phone?: string;
-  token: string;
-};
-
-// Provider component that wraps your app and makes auth object ...
-// ... available to any child component that calls useAuth().
 export function ProvideAuth({ children }: { children: React.ReactNode }) {
   const auth = useProvideAuth();
   return <authContext.Provider value={auth}>{children}</authContext.Provider>;
 }
-// Hook for child components to get the auth object ...
-// ... and re-render when it changes.
-export const useAuth = () => {
-  return useContext(authContext);
-};
 
-// Provider hook that creates auth object and handles state
+export const useAuth = () => useContext(authContext);
+
+function mapSupabaseUser(
+  sbUser: SupabaseAuthUser,
+  profile: {
+    full_name: string | null;
+    phone: string | null;
+  } | null
+): User {
+  const meta = (sbUser.user_metadata || {}) as Record<string, string>;
+  return {
+    id: sbUser.id,
+    email: sbUser.email ?? "",
+    fullname:
+      profile?.full_name ??
+      meta.full_name ??
+      meta.fullname ??
+      meta.name ??
+      "",
+    phone: profile?.phone ?? meta.phone ?? "",
+    shippingAddress: meta.shipping_address ?? "",
+  };
+}
+
 function useProvideAuth() {
   const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const initialAuth = getCookie("user");
-    if (initialAuth) {
-      const initUser = JSON.parse(initialAuth as string);
-      setUser(initUser);
-    }
+    let mounted = true;
+    let subscription: { unsubscribe: () => void } | undefined;
+
+    const run = async () => {
+      let supabase;
+      try {
+        supabase = getSupabaseBrowserClient();
+      } catch {
+        if (mounted) setAuthReady(true);
+        return;
+      }
+
+      const hydrate = async (sbUser: SupabaseAuthUser | null) => {
+        if (!sbUser) {
+          setUser(null);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", sbUser.id)
+          .maybeSingle();
+        setUser(mapSupabaseUser(sbUser, profile));
+      };
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (mounted && session?.user) await hydrate(session.user);
+      else if (mounted) setUser(null);
+
+      if (mounted) setAuthReady(true);
+
+      const { data: sub } = supabase.auth.onAuthStateChange(
+        async (_event, nextSession) => {
+          if (!mounted) return;
+          if (nextSession?.user) await hydrate(nextSession.user);
+          else setUser(null);
+        }
+      );
+      subscription = sub.subscription;
+    };
+
+    void run();
+
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
-
-  useEffect(() => {
-    setCookie("user", user);
-  }, [user]);
 
   const register = async (
     email: string,
@@ -79,107 +144,83 @@ function useProvideAuth() {
     phone: string
   ) => {
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/register`,
-        {
-          email,
-          fullname,
-          password,
-          shippingAddress,
-          phone,
-        }
-      );
-      const registerResponse = response.data;
-      const user: User = {
-        id: +registerResponse.id,
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signUp({
         email,
-        fullname,
-        shippingAddress,
-        phone,
-        token: registerResponse.token,
-      };
-      setUser(user);
-      return {
-        success: true,
-        message: "register_successful",
-      };
-    } catch (err) {
-      const errResponse = (err as any).response.data;
-      let errorMessage: string;
-      if (errResponse.error.type === "alreadyExists") {
-        errorMessage = errResponse.error.type;
-      } else {
-        errorMessage = errResponse.error.detail.message;
+        password,
+        options: {
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/`
+              : undefined,
+          data: {
+            full_name: fullname,
+            phone,
+            shipping_address: shippingAddress,
+          },
+        },
+      });
+      if (error) {
+        const msg =
+          error.message.toLowerCase().includes("registered") ||
+          error.message.toLowerCase().includes("already")
+            ? "alreadyExists"
+            : "error_occurs";
+        return { success: false, message: msg };
       }
-      return {
-        success: false,
-        message: errorMessage,
-      };
+      return { success: true, message: "register_successful" };
+    } catch {
+      return { success: false, message: "error_occurs" };
     }
   };
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/login`,
-        {
-          email,
-          password,
-        }
-      );
-      const loginResponse = response.data;
-      const user: User = {
-        id: +loginResponse.data.id,
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
         email,
-        fullname: loginResponse.data.fullname,
-        phone: loginResponse.data.phone,
-        shippingAddress: loginResponse.data.shippingAddress,
-        token: loginResponse.token,
-      };
-      setUser(user);
-      return {
-        success: true,
-        message: "login_successful",
-      };
-    } catch (err) {
-      return {
-        success: false,
-        message: "incorrect",
-      };
+        password,
+      });
+      if (error) {
+        return { success: false, message: "incorrect" };
+      }
+      return { success: true, message: "login_successful" };
+    } catch {
+      return { success: false, message: "incorrect" };
     }
   };
 
   const forgotPassword = async (email: string) => {
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/forgot-password`,
-        {
-          email,
-        }
-      );
-      const forgotPasswordResponse = response.data;
-      setUser(user);
-      return {
-        success: forgotPasswordResponse.success,
-        message: "reset_email_sent",
-      };
-    } catch (err) {
-      console.log(err);
-      return {
-        success: false,
-        message: "something_went_wrong",
-      };
+      const supabase = getSupabaseBrowserClient();
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: origin ? `${origin}/` : undefined,
+      });
+      if (error) {
+        return { success: false, message: "error_occurs" };
+      }
+      return { success: true, message: "password_reset_sent" };
+    } catch {
+      return { success: false, message: "error_occurs" };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      const supabase = getSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } catch {
+      /* ignore */
+    }
     setUser(null);
     deleteCookie("user");
   };
 
-  // Return the user object and auth methods
   return {
     user,
+    authReady,
     register,
     login,
     forgotPassword,

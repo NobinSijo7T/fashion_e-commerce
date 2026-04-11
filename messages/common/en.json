@@ -92,6 +92,7 @@
     "add_to_bag": "Add to bag",
 
     "place_order": "Place Order",
+    "placing_order": "Placing order…",
     "cash_on_delivery": "Cash on Delivery",
     "bank_transfer": "Bank Transfer",
     "bank_transfer_desc": "Make your payment directly into our CB, AYA, Kpay.",
@@ -153,6 +154,8 @@
     "showing_from_to": "Showing {from} ~ {to} of {all}",
     "availability": "Availability",
     "in_stock": "In Stock",
+    "out_of_stock": "Out of stock",
+    "color": "Color",
     "size": "Size",
     "add_to_cart": "Add To Cart",
     "add_to_wishlist": "Add To Wishlist",
@@ -182,6 +185,7 @@
     "incorrect_email_password": "Incorrect email or password",
     "login_successful": "Login Successful",
     "register_successful": "Register Successful",
+    "password_reset_sent": "Check your email for a password reset link.",
     "profile": "Profile"
   },
   "Search": {

@@ -1,12 +1,15 @@
 import { itemType } from "../cart/cart-types";
+import { cartLineKey } from "./cartLineKey";
 
 const removeItemFromCart = (cartItems: itemType[], item: itemType) => {
-  //   const duplicate = cartItems.some((cartItem) => cartItem.id === item.id);
+  const key = cartLineKey(item);
   if (item.qty === 1) {
-    return cartItems.filter((cartItem) => cartItem.id !== item.id);
+    return cartItems.filter((cartItem) => cartLineKey(cartItem) !== key);
   }
   return cartItems.map((cartItem) =>
-    cartItem.id === item.id ? { ...cartItem, qty: cartItem.qty! - 1 } : cartItem
+    cartLineKey(cartItem) === key
+      ? { ...cartItem, qty: cartItem.qty! - 1 }
+      : cartItem
   );
   //   if (duplicate) {
   //     return cartItems.map((cartItem) =>

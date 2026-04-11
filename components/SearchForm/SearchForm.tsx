@@ -3,13 +3,17 @@ import { Dialog, Transition } from "@headlessui/react";
 import { useTranslations } from "next-intl";
 
 import SearchIcon from "../../public/icons/SearchIcon";
-import axios from "axios";
-import { apiProductsType } from "../../context/cart/cart-types";
 import { itemType } from "../../context/wishlist/wishlist-type";
 import Card from "../Card/Card";
 import Loading from "../../public/icons/Loading";
 import GhostButton from "../Buttons/GhostButton";
 import { useRouter } from "next/router";
+import { getSupabaseBrowserClient } from "../../lib/supabase/client";
+import { PRODUCT_CARD_SELECT } from "../../lib/supabase/productSelect";
+import {
+  mapDbProductToItem,
+  type DbProductRow,
+} from "../../lib/supabase/mapProduct";
 
 export default function SearchForm() {
   const t = useTranslations("Navigation");
@@ -35,27 +39,49 @@ export default function SearchForm() {
   useEffect(() => {
     if (!isFetching) return;
     const fetchData = async () => {
-      const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_PROD_BACKEND_URL}/api/v1/products/search?q=${searchValue}`
-      );
-      const fetchedProducts: apiProductsType[] = res.data.data.map(
-        (product: apiProductsType) => ({
-          ...product,
-          img1: product.image1,
-          img2: product.image2,
-        })
-      );
-      if (fetchedProducts.length < 1) setNoResult(true);
-      fetchedProducts.map((product, index) => {
-        if (index < 4) {
-          setSearchItems((prevProduct) => [...prevProduct, product]);
-        } else {
-          setMoreThanFour(true);
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const term = searchValue.trim();
+        if (!term) {
+          setNoResult(true);
+          setSearchItems([]);
+          setMoreThanFour(false);
+          return;
         }
-      });
-      setIsFetching(false);
+        const safe = term.replace(/%/g, "\\%").replace(/_/g, "\\_");
+        const pattern = `%${safe}%`;
+        const [byName, byDesc] = await Promise.all([
+          supabase
+            .from("products")
+            .select(PRODUCT_CARD_SELECT)
+            .eq("is_active", true)
+            .ilike("name", pattern),
+          supabase
+            .from("products")
+            .select(PRODUCT_CARD_SELECT)
+            .eq("is_active", true)
+            .ilike("description", pattern),
+        ]);
+        const merged = new Map<string, DbProductRow>();
+        for (const row of (byName.data ?? []) as unknown as DbProductRow[]) {
+          merged.set(row.id, row);
+        }
+        for (const row of (byDesc.data ?? []) as unknown as DbProductRow[]) {
+          merged.set(row.id, row);
+        }
+        const list = [...merged.values()].map(mapDbProductToItem);
+        if (list.length < 1) setNoResult(true);
+        else setNoResult(false);
+        setSearchItems(list.slice(0, 4));
+        setMoreThanFour(list.length > 4);
+      } catch {
+        setNoResult(true);
+        setSearchItems([]);
+      } finally {
+        setIsFetching(false);
+      }
     };
-    fetchData();
+    void fetchData();
   }, [isFetching, searchValue]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -100,13 +126,6 @@ export default function SearchForm() {
               <Dialog.Overlay className="fixed inset-0 bg-gray500 opacity-50" />
             </Transition.Child>
 
-            {/* This element is to trick the browser into centering the modal contents. */}
-            {/* <span
-              className="inline-block h-screen align-middle"
-              aria-hidden="true"
-            >
-              &#8203;
-            </span> */}
             <Transition.Child
               as={Fragment}
               enter="ease-linear duration-400"

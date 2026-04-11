@@ -2,14 +2,27 @@ import { useCallback } from "react";
 
 export const FILTER_CATEGORIES = [
   "All",
-  "Dresses",
-  "Tops",
-  "Bottoms",
-  "Outerwear",
-  "Bags",
+  "Casual",
+  "Ethnic",
+  "Western",
+  "Formal",
+  "Active",
+  "Winter",
+  "Kids",
 ] as const;
 
 export type FilterCategory = (typeof FILTER_CATEGORIES)[number];
+
+/** Maps filter tab → DB category name keywords (case-insensitive) */
+export const FILTER_MATCHERS: Record<Exclude<FilterCategory, "All">, string[]> = {
+  Casual: ["casual"],
+  Ethnic: ["ethnic"],
+  Western: ["western"],
+  Formal: ["formal"],
+  Active: ["active"],
+  Winter: ["winter"],
+  Kids: ["kids"],
+};
 
 type Props = {
   active: FilterCategory;

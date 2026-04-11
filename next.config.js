@@ -10,7 +10,7 @@ const nextConfig = {
     removeConsole: true,
   },
   images: {
-    domains: ["robohash.org", "res.cloudinary.com"],
+    domains: ["robohash.org", "res.cloudinary.com", "i.ibb.co"],
   },
 };
 

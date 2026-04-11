@@ -1,5 +1,4 @@
 import Link from "next/link";
-import axios from "axios";
 import { GetServerSideProps } from "next";
 import { useRouter } from "next/router";
 import { Menu } from "@headlessui/react";
@@ -9,8 +8,9 @@ import Header from "../../components/Header/Header";
 import Footer from "../../components/Footer/Footer";
 import Card from "../../components/Card/Card";
 import Pagination from "../../components/Util/Pagination";
-import { apiProductsType, itemType } from "../../context/cart/cart-types";
+import { itemType } from "../../context/cart/cart-types";
 import DownArrow from "../../public/icons/DownArrow";
+import { fetchCategoryProducts } from "../../lib/supabase/productQueries";
 
 type OrderType = "latest" | "price" | "price-desc";
 
@@ -19,6 +19,7 @@ type Props = {
   page: number;
   numberOfProducts: number;
   orderby: OrderType;
+  categoryName: string;
 };
 
 const ProductCategory: React.FC<Props> = ({
@@ -26,6 +27,7 @@ const ProductCategory: React.FC<Props> = ({
   page,
   numberOfProducts,
   orderby,
+  categoryName,
 }) => {
   const t = useTranslations("Category");
 
@@ -60,7 +62,7 @@ const ProductCategory: React.FC<Props> = ({
 
         {/* ===== Heading & Filter Section ===== */}
         <div className="app-x-padding app-max-width w-full mt-8">
-          <h3 className="text-4xl mb-2 capitalize">{t(category as string)}</h3>
+          <h3 className="text-4xl mb-2 capitalize">{categoryName}</h3>
           <div className="flex flex-col-reverse sm:flex-row gap-4 sm:gap-0 justify-between mt-4 sm:mt-6">
             <span>
               {t("showing_from_to", {
@@ -99,58 +101,64 @@ const ProductCategory: React.FC<Props> = ({
 export const getServerSideProps: GetServerSideProps = async ({
   params,
   locale,
-  query: { page = 1, orderby = "latest" },
+  query,
 }) => {
   const paramCategory = params!.category as string;
+  const pageRaw = query.page ?? 1;
+  const orderRaw = query.orderby ?? "latest";
+  const pageNum = Number(Array.isArray(pageRaw) ? pageRaw[0] : pageRaw) || 1;
+  const orderbyStr = Array.isArray(orderRaw) ? orderRaw[0] : orderRaw;
 
-  const start = +page === 1 ? 0 : (+page - 1) * 10;
+  const start = pageNum === 1 ? 0 : (pageNum - 1) * 10;
 
-  let numberOfProducts = 0;
+  const order =
+    orderbyStr === "price"
+      ? "price"
+      : orderbyStr === "price-desc"
+        ? "price-desc"
+        : "latest";
 
-  if (paramCategory !== "new-arrivals") {
-    const numberOfProductsResponse = await axios.get(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products/count?category=${paramCategory}`
-    );
-    numberOfProducts = +numberOfProductsResponse.data.count;
-  } else {
-    numberOfProducts = 10;
-  }
-
-  let order_by: string;
-
-  if (orderby === "price") {
-    order_by = "price";
-  } else if (orderby === "price-desc") {
-    order_by = "price.desc";
-  } else {
-    order_by = "createdAt.desc";
-  }
-
-  const reqUrl =
-    paramCategory === "new-arrivals"
-      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products?order_by=createdAt.desc&limit=10`
-      : `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/products?order_by=${order_by}&offset=${start}&limit=10&category=${paramCategory}`;
-
-  const res = await axios.get(reqUrl);
-
-  const fetchedProducts = res.data.data.map((product: apiProductsType) => ({
-    ...product,
-    img1: product.image1,
-    img2: product.image2,
-  }));
-
-  let items: apiProductsType[] = [];
-  fetchedProducts.forEach((product: apiProductsType) => {
-    items.push(product);
+  const { items, count } = await fetchCategoryProducts({
+    categoryParam: paramCategory,
+    offset: start,
+    limit: 10,
+    orderBy: order,
   });
+
+  // Resolve display name from DB
+  let categoryName = paramCategory
+    .split("-")
+    .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+  if (paramCategory === "new-arrivals") {
+    categoryName = "New Arrivals";
+  } else if (paramCategory === "women") {
+    categoryName = "Women";
+  } else if (paramCategory === "men") {
+    categoryName = "Men";
+  } else {
+    try {
+      const { createSupabaseServerClient } = await import("../../lib/supabase/server");
+      const supabase = createSupabaseServerClient();
+      const { data: cat } = await supabase
+        .from("fashion_categories")
+        .select("name")
+        .eq("slug", paramCategory)
+        .maybeSingle();
+      if (cat?.name) categoryName = cat.name;
+    } catch {
+      /* keep slug-derived fallback */
+    }
+  }
 
   return {
     props: {
       messages: (await import(`../../messages/common/${locale}.json`)).default,
       items,
-      numberOfProducts,
-      page: +page,
-      orderby,
+      numberOfProducts: count,
+      page: pageNum,
+      orderby: orderbyStr,
+      categoryName,
     },
   };
 };

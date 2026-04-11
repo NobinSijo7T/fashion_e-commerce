@@ -47,8 +47,6 @@ const Register: React.FC<Props> = ({
     }
   };
 
-  auth.user ? console.log(auth.user) : console.log("No User");
-
   return (
     <>
       <Dialog.Title

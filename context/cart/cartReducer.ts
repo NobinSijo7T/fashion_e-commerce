@@ -1,4 +1,5 @@
 import addItemToCart from "../Util/addItemToCart";
+import { cartLineKey } from "../Util/cartLineKey";
 import {
   ADD_ITEM,
   ADD_ONE,
@@ -33,13 +34,13 @@ const cartReducer = (state: cartType, action: actionType) => {
         ...state,
         cart: removeItemFromCart(state.cart, action.payload as itemType),
       };
-    case DELETE_ITEM:
+    case DELETE_ITEM: {
+      const key = cartLineKey(action.payload as itemType);
       return {
         ...state,
-        cart: state.cart.filter(
-          (cartItem) => cartItem.id !== (action.payload as itemType).id
-        ),
+        cart: state.cart.filter((cartItem) => cartLineKey(cartItem) !== key),
       };
+    }
     case SET_CART:
       return {
         ...state,

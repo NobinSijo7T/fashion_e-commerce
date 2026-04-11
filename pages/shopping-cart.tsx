@@ -12,6 +12,7 @@ import { GetServerSideProps } from "next";
 import { roundDecimal } from "../components/Util/utilFunc";
 import { useCart } from "../context/cart/CartProvider";
 import { useRouter } from "next/router";
+import { cartLineKey } from "../context/Util/cartLineKey";
 
 // let w = window.innerWidth;
 
@@ -82,7 +83,10 @@ const ShoppingCart = () => {
                   cart.map((item) => {
                     subtotal += item.price * item.qty!;
                     return (
-                      <tr className="border-b-2 border-gray200" key={item.id}>
+                      <tr
+                        className="border-b-2 border-gray200"
+                        key={cartLineKey(item)}
+                      >
                         <td className="my-3 flex flex-col xl:flex-row items-start sm:items-center xl:space-x-2 text-center xl:text-left">
                           <Link
                             href={`/products/${encodeURIComponent(item.id)}`}
