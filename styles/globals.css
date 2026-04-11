@@ -2,8 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Jost:wght@100;200;300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Syne:wght@400;700;800&display=swap");
 @import "styles.css";
+
+:root {
+  --haru-bg: #ffffff;
+  --haru-surface: #f5f5f5;
+  --haru-card: #fafafa;
+  --haru-accent: #7c3aed;
+  --haru-hot: #ff3d57;
+  --haru-text: #0d0d0d;
+  --haru-muted: #6b6b6b;
+  --haru-border: #e8e8e8;
+  --haru-success: #00c896;
+  --haru-tag-violet: #f0ebff;
+  --haru-tag-red: #fff0f2;
+}
+
+html,
+body {
+  @apply bg-white text-haru-text antialiased;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes haru-ticker {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.haru-ticker-track {
+  display: inline-flex;
+  width: max-content;
+  animation: haru-ticker 45s linear infinite;
+  will-change: transform;
+}
+
+.haru-scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.haru-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes haru-pulse-heart {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.haru-wishlist-saved {
+  animation: haru-pulse-heart 0.45s ease-out;
+}
 
 @layer components {
   .app-x-padding {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { GetServerSideProps } from "next";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -7,10 +7,13 @@ import axios from "axios";
 import Header from "../components/Header/Header";
 import Footer from "../components/Footer/Footer";
 import Button from "../components/Buttons/Button";
-import Slideshow from "../components/HeroSection/Slideshow";
+import HeroBanner from "../components/HeroBanner";
 import OverlayContainer from "../components/OverlayContainer/OverlayContainer";
 import Card from "../components/Card/Card";
 import TestiSlider from "../components/TestiSlider/TestiSlider";
+import StatsStrip from "../components/StatsStrip";
+import SectionHeader from "../components/SectionHeader";
+import FilterRow, { FilterCategory } from "../components/FilterRow";
 import { apiProductsType, itemType } from "../context/cart/cart-types";
 import LinkButton from "../components/Buttons/LinkButton";
 
@@ -25,6 +28,23 @@ const Home: React.FC<Props> = ({ products }) => {
   const t = useTranslations("Index");
   const [currentItems, setCurrentItems] = useState(products);
   const [isFetching, setIsFetching] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterCategory>("All");
+
+  const filteredItems = useMemo(() => {
+    if (activeFilter === "All") return currentItems;
+    const matchers: Record<Exclude<FilterCategory, "All">, string[]> = {
+      Dresses: ["dress", "gown"],
+      Tops: ["top", "shirt", "tee", "blouse"],
+      Bottoms: ["bottom", "pant", "jean", "short", "skirt"],
+      Outerwear: ["outer", "jacket", "coat", "hoodie", "blazer"],
+      Bags: ["bag"],
+    };
+    const keys = matchers[activeFilter];
+    return currentItems.filter((p) => {
+      const name = (p.category?.name ?? p.categoryName ?? "").toLowerCase();
+      return keys.some((k) => name.includes(k));
+    });
+  }, [currentItems, activeFilter]);
 
   useEffect(() => {
     if (!isFetching) return;
@@ -55,12 +75,23 @@ const Home: React.FC<Props> = ({ products }) => {
       {/* ===== Header Section ===== */}
       <Header />
 
-      {/* ===== Carousel Section ===== */}
-      <Slideshow />
+      <HeroBanner
+        highlight={
+          products[0]
+            ? {
+                name: products[0].name,
+                price: products[0].price,
+                href: `/products/${encodeURIComponent(products[0].id)}`,
+              }
+            : null
+        }
+      />
 
-      <main id="main-content" className="-mt-20">
+      <StatsStrip />
+
+      <main id="main-content" className="bg-white">
         {/* ===== Category Section ===== */}
-        <section className="w-full h-auto py-10 border border-b-2 border-gray100">
+        <section className="w-full h-auto border-b border-haru-border py-10">
           <div className="app-max-width app-x-padding h-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="w-full sm:col-span-2 lg:col-span-2">
               <OverlayContainer
@@ -106,11 +137,13 @@ const Home: React.FC<Props> = ({ products }) => {
         </section>
 
         {/* ===== Best Selling Section ===== */}
-        <section className="app-max-width w-full h-full flex flex-col justify-center mt-16 mb-20">
-          <div className="flex justify-center">
-            <div className="w-3/4 sm:w-1/2 md:w-1/3 text-center mb-8">
-              <h2 className="text-3xl mb-4">{t("best_selling")}</h2>
-              <span>{t("best_selling_desc")}</span>
+        <section className="app-max-width app-x-padding mt-16 mb-20 flex h-full w-full flex-col justify-center">
+          <div className="mb-10 flex justify-center text-center">
+            <div className="w-3/4 sm:w-1/2 md:w-1/3">
+              <h2 className="mb-4 font-display text-3xl font-extrabold uppercase text-haru-text">
+                {t("best_selling")}
+              </h2>
+              <span className="text-sm text-haru-muted">{t("best_selling_desc")}</span>
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 lg:gap-x-12 gap-y-6 mb-10 app-x-padding">
@@ -121,18 +154,22 @@ const Home: React.FC<Props> = ({ products }) => {
         </section>
 
         {/* ===== Testimonial Section ===== */}
-        <section className="w-full hidden h-full py-16 md:flex flex-col items-center bg-lightgreen">
-          <h2 className="text-3xl">{t("testimonial")}</h2>
+        <section className="hidden h-full w-full flex-col items-center border-y border-haru-border bg-haru-surface py-16 md:flex">
+          <h2 className="font-display text-3xl font-extrabold uppercase text-haru-text">
+            {t("testimonial")}
+          </h2>
           <TestiSlider />
         </section>
 
         {/* ===== Featured Products Section ===== */}
         <section className="app-max-width app-x-padding my-16 flex flex-col">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl">{t("featured_products")}</h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-10 sm:gap-y-6 mb-10">
-            {currentItems.map((item) => (
+          <SectionHeader
+            title={t("featured_products")}
+            seeAllHref="/product-category/new-arrivals"
+          />
+          <FilterRow active={activeFilter} onChange={setActiveFilter} />
+          <div className="mb-10 grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 sm:gap-y-6 md:grid-cols-4 lg:grid-cols-5">
+            {filteredItems.map((item) => (
               <Card key={item.id} item={item} />
             ))}
           </div>
@@ -144,13 +181,15 @@ const Home: React.FC<Props> = ({ products }) => {
           </div>
         </section>
 
-        <div className="border-gray100 border-b-2"></div>
+        <div className="border-b border-haru-border" />
 
         {/* ===== Our Shop Section */}
-        <section className="app-max-width mt-16 mb-20 flex flex-col justify-center items-center text-center">
-          <div className="textBox w-3/4 md:w-2/4 lg:w-2/5 mb-6">
-            <h2 className="text-3xl mb-6">{t("our_shop")}</h2>
-            <span className="w-full">{t("our_shop_desc")}</span>
+        <section className="app-max-width mt-16 mb-20 flex flex-col items-center justify-center text-center">
+          <div className="textBox mb-6 w-3/4 md:w-2/4 lg:w-2/5">
+            <h2 className="mb-6 font-display text-3xl font-extrabold uppercase text-haru-text">
+              {t("our_shop")}
+            </h2>
+            <span className="w-full text-haru-muted">{t("our_shop_desc")}</span>
           </div>
           <div className="w-full app-x-padding flex justify-center">
             <Image src={ourShop} alt="Our Shop" />
@@ -182,6 +221,11 @@ export const getServerSideProps: GetServerSideProps = async ({
           price: product.price,
           img1: product.image1,
           img2: product.image2,
+          discountPercent: product.discountPercent,
+          createdAt: product.createdAt,
+          stock: product.stock,
+          category: product.category,
+          categoryName: product.category?.name,
         },
       ];
     });

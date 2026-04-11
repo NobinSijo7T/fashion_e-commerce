@@ -17,7 +17,11 @@ import FacebookLogo from "../../public/icons/FacebookLogo";
 import { useWishlist } from "../../context/wishlist/WishlistProvider";
 import { useAuth } from "../../context/AuthContext";
 
-export default function Menu() {
+type MenuProps = {
+  onWishlistOpen?: () => void;
+};
+
+export default function Menu({ onWishlistOpen }: MenuProps) {
   const t = useTranslations("Navigation");
   const router = useRouter();
   const { asPath, locale } = router;
@@ -168,22 +172,43 @@ export default function Menu() {
                       </AuthForm>
                     </div>
                     <hr className="border border-gray300 w-full" />
-                    <Link
-                      href="/wishlist"
-                      className="text-xl py-2 my-3 w-full flex justify-between"
-                    >
-                      <span>{t("wishlist")}</span>
-                      <div className="relative">
-                        <WhistlistIcon />
-                        {noOfWishlist > 0 && (
-                          <span
-                            className={`absolute text-xs -top-0 -left-7 bg-gray500 text-gray100 py-1 px-2 rounded-full`}
-                          >
-                            {noOfWishlist}
-                          </span>
-                        )}
-                      </div>
-                    </Link>
+                    {onWishlistOpen ? (
+                      <button
+                        type="button"
+                        className="text-xl py-2 my-3 w-full flex justify-between text-left"
+                        onClick={() => {
+                          closeModal();
+                          onWishlistOpen();
+                        }}
+                      >
+                        <span>{t("wishlist")}</span>
+                        <div className="relative">
+                          <WhistlistIcon />
+                          {noOfWishlist > 0 && (
+                            <span className="absolute -left-7 -top-0 rounded-full bg-haru-accent px-2 py-0.5 font-mono text-[10px] text-white">
+                              {noOfWishlist}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ) : (
+                      <Link
+                        href="/wishlist"
+                        className="text-xl py-2 my-3 w-full flex justify-between"
+                      >
+                        <span>{t("wishlist")}</span>
+                        <div className="relative">
+                          <WhistlistIcon />
+                          {noOfWishlist > 0 && (
+                            <span
+                              className={`absolute text-xs -top-0 -left-7 bg-gray500 text-gray100 py-1 px-2 rounded-full`}
+                            >
+                              {noOfWishlist}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    )}
                     <hr className="border border-gray300 w-full" />
 
                     {/* Locale Dropdown */}

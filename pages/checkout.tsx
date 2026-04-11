@@ -59,7 +59,6 @@ const ShoppingCart = () => {
     quantity: item.qty,
   }));
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!isOrdering) return;
 
@@ -109,6 +108,8 @@ const ShoppingCart = () => {
       }
     };
     if (auth.user) makeOrder();
+    // Intentionally narrow deps: full form/cart deps would re-fire this effect on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOrdering, completedOrder, auth.user]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps

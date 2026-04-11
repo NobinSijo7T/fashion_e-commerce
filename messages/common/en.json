@@ -46,7 +46,8 @@
     "no_result": "No Result",
     "sort_by_latest": "Sort by latest",
     "sort_by_price": "Sort by price: low to high",
-    "sort_by_price_desc": "Sort by price: high to low"
+    "sort_by_price_desc": "Sort by price: high to low",
+    "drop_alert": "Drop Alert"
   },
   "CartWishlist": {
     "wishlist": "Wishlist",
@@ -80,6 +81,15 @@
     "clear_cart": "Clear Cart",
     "cart_is_empty": "Cart is empty!",
     "shopping_cart": "Shopping Cart",
+    "saved_items": "Saved Items",
+    "nothing_saved_yet": "Nothing saved yet",
+    "move_all_to_bag": "Move all to bag",
+    "your_bag": "Your Bag",
+    "bag_empty": "Your bag is empty",
+    "start_shopping": "Start shopping",
+    "drawer_total": "Total",
+    "standard_shipping": "Free over $60",
+    "add_to_bag": "Add to bag",
 
     "place_order": "Place Order",
     "cash_on_delivery": "Cash on Delivery",
