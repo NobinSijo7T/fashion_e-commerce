@@ -11,6 +11,13 @@ const nextConfig = {
   },
   images: {
     domains: ["robohash.org", "res.cloudinary.com", "i.ibb.co"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
   },
 };
 

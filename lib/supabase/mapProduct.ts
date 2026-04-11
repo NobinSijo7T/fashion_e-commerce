@@ -1,4 +1,5 @@
 import type { itemType } from "../../context/cart/cart-types";
+import { serializeJsonSafe } from "../serializeJsonSafe";
 
 export type DbProductImage = {
   image_url: string;
@@ -69,13 +70,14 @@ export function mapDbProductToItem(row: DbProductRow): itemType {
     0
   );
 
-  return {
+  return serializeJsonSafe({
     id: row.id,
     name: row.name,
     price: linePrice,
     description: row.description ?? undefined,
     detail: row.description ?? undefined,
-    discountPercent: row.discount_percent != null ? num(row.discount_percent) : undefined,
+    discountPercent:
+      row.discount_percent != null ? num(row.discount_percent) : undefined,
     img1,
     img2,
     brand: row.brand ?? undefined,
@@ -90,5 +92,5 @@ export function mapDbProductToItem(row: DbProductRow): itemType {
     variantId: def?.id,
     size: def?.size,
     color: def?.color,
-  };
+  });
 }
