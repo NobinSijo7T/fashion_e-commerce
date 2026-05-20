@@ -1,7 +1,7 @@
 # 🛍️ Fashion Store E-commerce Web Application
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/53733092/139094836-3c75c8fa-4f7a-43a7-b8c8-7cf45af53b71.png" alt="Fashion Store Responsive Design" width="100%" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+ 
 </p>
 
 <p align="center">
