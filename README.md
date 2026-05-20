@@ -1,7 +1,7 @@
-# 🛍️ Haru-Fashion E-commerce Web Application
+# 🛍️ Fashion Store E-commerce Web Application
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/53733092/139094836-3c75c8fa-4f7a-43a7-b8c8-7cf45af53b71.png" alt="Haru-Fashion Responsive Design" width="100%" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
+  <img src="https://user-images.githubusercontent.com/53733092/139094836-3c75c8fa-4f7a-43a7-b8c8-7cf45af53b71.png" alt="Fashion Store Responsive Design" width="100%" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);" />
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 ---
 
 ## 📖 Introduction
-**Haru-Fashion** is a state-of-the-art, premium e-commerce web application meticulously engineered using **Next.js (Pages Router)**, **TypeScript**, and **Tailwind CSS**. 
+**Fashion Store** is a state-of-the-art, premium e-commerce web application meticulously engineered using **Next.js (Pages Router)**, **TypeScript**, and **Tailwind CSS**. 
 
 The app leverages **Supabase** as its comprehensive backend and database layer, featuring full-scale Context-driven state management for cart/wishlist syncs, responsive swipe-based testimonial carousels, dynamic multi-language routing (**next-intl**), and an elegant, keyboard-accessible design system.
 
@@ -37,7 +37,7 @@ The app leverages **Supabase** as its comprehensive backend and database layer, 
 
 ## 🏗️ Architecture & Project Structure
 
-Explore the folder structure of **Haru-Fashion** interactively. Click on any directory below to reveal its architectural responsibilities and key modules:
+Explore the folder structure of **Fashion Store** interactively. Click on any directory below to reveal its architectural responsibilities and key modules:
 
 <details>
   <summary>📂 <b><code>components/</code></b> - Reusable UI Modules</summary>
@@ -158,7 +158,7 @@ graph TD
 
 ## ✨ Premium Interactive Widgets & Components
 
-Haru-Fashion features several modular interactive UI elements crafted for an immersive user experience. Tap on any widget below to explore its details:
+Fashion Store features several modular interactive UI elements crafted for an immersive user experience. Tap on any widget below to explore its details:
 
 <table>
   <thead>
@@ -265,7 +265,7 @@ Haru-Fashion features several modular interactive UI elements crafted for an imm
 
 ## ⚙️ Developer Installation & Workflows
 
-Follow this interactive workspace launcher guide to run **Haru-Fashion** locally:
+Follow this interactive workspace launcher guide to run **Fashion Store** locally:
 
 <details>
   <summary><b>1. Clone & Initialize</b></summary>
@@ -295,7 +295,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key</code></pre>
 <details>
   <summary><b>3. Install Dependencies & Boot Server</b></summary>
   <blockquote>
-    Haru-Fashion works seamlessly using standard package managers:
+    Fashion Store works seamlessly using standard package managers:
     <pre><code class="language-bash"># Install packages
 npm install
 
@@ -320,12 +320,12 @@ npm run start</code></pre>
 <details>
   <summary><b>5. Running with Docker Containerization</b></summary>
   <blockquote>
-    Haru-Fashion is container-ready. Build and run via Docker easily:
+    Fashion Store is container-ready. Build and run via Docker easily:
     <pre><code class="language-bash"># Build the docker container
-docker build -t haru-fashion .
+docker build -t fashion-store .
 
 # Start the docker container
-docker run -p 3000:3000 haru-fashion</code></pre>
+docker run -p 3000:3000 fashion-store</code></pre>
   </blockquote>
 </details>
 
