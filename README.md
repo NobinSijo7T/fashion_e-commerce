@@ -28,10 +28,8 @@ The app leverages **Supabase** as its comprehensive backend and database layer, 
     <li><a href="#-interactive-visual-flowchart">📊 Interactive Visual Flowchart</a></li>
     <li><a href="#-premium-interactive-widgets--components">✨ Premium Interactive Widgets & Components</a></li>
     <li><a href="#-modern-technology-stack">🛠️ Modern Technology Stack</a></li>
-    <li><a href="#-lighthouse-performance-score">⚡ Lighthouse Performance Score</a></li>
     <li><a href="#-key-features">🔥 Key Features</a></li>
     <li><a href="#%EF%B8%8F-developer-installation--workflows">⚙️ Developer Installation & Workflows</a></li>
-    <li><a href="#-inspiration--credits">🌟 Inspiration & Credits</a></li>
   </ul>
 </details>
 
@@ -253,17 +251,7 @@ Haru-Fashion features several modular interactive UI elements crafted for an imm
 | **Visualization** | `Recharts` | Elegant analytics display in the Admin dashboard. |
 | **State Handling** | `React Context API` | State distribution (Auth contexts, Cart drawer caches, etc.). |
 
----
 
-## ⚡ Lighthouse Performance Score
-
-We prioritize performance, ensuring that web pages are accessible, fast, and SEO-optimized.
-
-<p align="center">
-  <img width="760" alt="Lighthouse Perfect score indicator" src="https://user-images.githubusercontent.com/53733092/155963931-9de8e33f-e77a-40fb-8cae-18ceffb057ad.png" style="border-radius: 8px;" />
-</p>
-
----
 
 ## 🔥 Key Features
 
@@ -341,16 +329,4 @@ docker run -p 3000:3000 haru-fashion</code></pre>
   </blockquote>
 </details>
 
----
 
-## 🌟 Inspiration & Credits
-
-Images and visual layouts inside Haru-Fashion are inspired by premium, minimalist design systems:
-- [Goya WordPress Premium Theme](https://goya.everthemes.com/demo-fashion/) - Classic Minimalist aesthetics.
-- [Lusion WordPress Premium Theme](https://hn.arrowpress.net/lusion/home-minimalist/?currency=USD) - Multi-functional layout grids.
-
----
-
-## 👤 Original Author
-
-Created by [@satnaing](https://github.com/satnaing) with design refinement, modern Supabase state layers, and full interactive document updates. Feel free to explore the project!
